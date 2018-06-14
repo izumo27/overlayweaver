@@ -66,7 +66,7 @@ class RoutingRuntimeSkeleton implements RoutingService, RoutingRuntime {
 
 	//
 	// only for RoutingService
-	// 
+	//
 	public void addCallbackOnNodeFailure(CallbackOnNodeFailure callback) {}
 	public void addCallbackOnRoute(CallbackOnRoute callback) {}
 	public MessagingProvider getMessagingProvider() { return null; }

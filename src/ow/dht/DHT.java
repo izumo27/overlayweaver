@@ -31,7 +31,7 @@ import ow.util.HighLevelService;
  */
 public interface DHT<V extends Serializable> extends HighLevelService {
 	//
-	// DHT management 
+	// DHT management
 	//
 
 	/**
@@ -40,7 +40,7 @@ public interface DHT<V extends Serializable> extends HighLevelService {
 	void clearDHTState();
 
 	//
-	// DHT-related operations 
+	// DHT-related operations
 	//
 
 	/**
@@ -81,6 +81,10 @@ public interface DHT<V extends Serializable> extends HighLevelService {
 	 * Performs multiple get operations collectively.
 	 */
 	Set<ValueInfo<V>>[] get(ID[] keys);
+
+	// ここから追加
+	Set<ValueInfo<V>>[] ml(ID[] keys);
+	// ここまで追加
 
 	/**
 	 * Removes a pair of the specified key and value.
@@ -164,6 +168,32 @@ public interface DHT<V extends Serializable> extends HighLevelService {
 			return sb.toString();
 		}
 	}
+
+	// ここから追加
+	public static class MLRequest<V> implements Serializable {
+		private final ID key; private final int values;
+
+		public MLRequest(ID key, int values) {
+			this.key = key; this.values = values;
+		}
+
+		public ID getKey() { return this.key; }
+		public int getValues() { return this.values; }
+
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			sb.append("{ key: ").append(this.key.toString());
+//			if (this.values != null) {
+//				sb.append(", value:");
+//				for (V v: this.values) sb.append(" ").append(v);
+//			}
+			sb.append(", value:");
+			sb.append(" ").append(values);
+			sb.append(" }");
+			return sb.toString();
+		}
+	}
+	// ここまで追加
 
 	public final static class RemoveRequest<V> extends PutRequest<V> {
 		private final ID[] valueHash;	// optional

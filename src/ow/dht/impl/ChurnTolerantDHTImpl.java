@@ -37,6 +37,7 @@ import ow.dht.DHTConfiguration;
 import ow.dht.ValueInfo;
 import ow.dht.impl.message.DHTReplyMessage;
 import ow.dht.impl.message.GetMessage;
+import ow.dht.impl.message.MLMessage;
 import ow.dht.impl.message.PutMessage;
 import ow.dht.impl.message.PutValueInfoMessage;
 import ow.dht.impl.message.RemoveMessage;
@@ -182,6 +183,35 @@ public class ChurnTolerantDHTImpl<V extends Serializable> extends BasicDHTImpl<V
 
 		return results;
 	}
+
+	// ここから追加
+	public Set<ValueInfo<V>>[] ml(ID[] keys) {
+		Set<ValueInfo<V>>[] results = new Set/*<ValueInfo<V>>*/[keys.length];
+
+		RoutingResult[] routingRes = super.mlRemotely(keys, results);
+
+
+		int numTimesGets = config.getNumTimesGets() - 1;
+		if (numTimesGets > 0) {
+			Queue<IDAddressPair>[] respCands = new Queue/*<IDAddressPair>*/[keys.length];
+
+			for (int i = 0; i < keys.length; i++) {
+				if (routingRes[i] == null) continue;
+
+				for (IDAddressPair p: routingRes[i].getResponsibleNodeCandidates()) {
+					if (respCands[i] == null)	// skip the first element
+						respCands[i] = new LinkedList<IDAddressPair>();
+					else
+						respCands[i].add(p);
+				}
+			}
+
+			this.requestReplicas(results, keys, respCands, numTimesGets);
+		}
+
+		return results;
+	}
+	// ここまで追加
 
 	private void requestReplicas(
 			Set<ValueInfo<V>>[] resultSet, ID[] keys, Queue<IDAddressPair>[] respCands, int numTimesGets) {
@@ -454,6 +484,11 @@ public class ChurnTolerantDHTImpl<V extends Serializable> extends BasicDHTImpl<V
 		handler = new PutMessageHandler();
 		routingSvc.addMessageHandler(PutMessage.class, handler);
 
+		// ここから追加
+		handler = new MLMessageHandler();
+		routingSvc.addMessageHandler(MLMessage.class, handler);
+		// ここまで追加
+
 		handler = new RemoveMessageHandler();
 		routingSvc.addMessageHandler(RemoveMessage.class, handler);
 
@@ -517,6 +552,42 @@ public class ChurnTolerantDHTImpl<V extends Serializable> extends BasicDHTImpl<V
 			return resultMsg;
 		}
 	}
+
+	// ここから追加
+	protected class MLMessageHandler extends BasicDHTImpl.MLMessageHandler {
+		public Message process(Message msg) {
+			// put locally
+			Message resultMsg = super.process(msg);
+
+			Set<ValueInfo<V>>[] ret = ((DHTReplyMessage<V>)resultMsg).existedValues;
+
+			// put remotely
+//			int numReplica = ((MLMessage<V>)msg).numReplica;
+
+//			if (numReplica > 1) {
+//				final DHT.MLRequest<V>[] requests = ((MLMessage<V>)msg).requests;
+//				long ttl = ((MLMessage<V>)msg).ttl;
+//				final ByteArray hashedSecret = ((MLMessage<V>)msg).hashedSecret;
+//
+//				Set<ValueInfo<V>>[] existedValue =
+//					MLRemotely(requests, false, ttl, hashedSecret, false,
+//							1, numReplica - 1, true);
+//
+//				if (existedValue != null) {
+//					for (int i = 0; i < requests.length; i++) {
+//						Set<ValueInfo<V>> s = existedValue[i];
+//						if (s != null) {
+//							if (ret[i] == null) ret[i] = new HashSet<ValueInfo<V>>();
+//							ret[i].addAll(s);
+//						}
+//					}
+//				}
+//			}	// if (numReplica > 1)
+
+			return resultMsg;
+		}
+	}
+	// ここまで追加
 
 	private class RemoveMessageHandler extends BasicDHTImpl<V>.RemoveMessageHandler {
 		public Message process(Message msg) {

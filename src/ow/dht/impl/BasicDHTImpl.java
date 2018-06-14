@@ -36,7 +36,10 @@ import ow.dht.DHTConfiguration;
 import ow.dht.ValueInfo;
 import ow.dht.impl.message.DHTReplyMessage;
 import ow.dht.impl.message.GetMessage;
+// ここから追加
+import ow.dht.impl.message.MLMessage;
 import ow.dht.impl.message.PutMessage;
+// ここまで追加
 import ow.dht.impl.message.RemoveMessage;
 import ow.dht.impl.message.ReqTransferMessage;
 import ow.dht.memcached.Memcached;
@@ -260,6 +263,14 @@ public class BasicDHTImpl<V extends Serializable> implements DHT<V> {
 		return results;
 	}
 
+	// ここから追加
+	public Set<ValueInfo<V>>[] ml(ID[] keys) {
+		Set<ValueInfo<V>>[] results = new Set/*<ValueInfo<V>>*/[keys.length];
+
+		return results;
+	}
+	// ここまで追加
+
 	protected RoutingResult[] getRemotely(ID[] keys, Set<ValueInfo<V>>[] results) {
 		Serializable[][] args = new Serializable[keys.length][1];
 		for (int i = 0; i < keys.length; i++) {
@@ -287,6 +298,75 @@ public class BasicDHTImpl<V extends Serializable> implements DHT<V> {
 
 		return routingRes;
 	}
+
+	// ここから追加
+	protected RoutingResult[] mlRemotely(ID[] keys, Set<ValueInfo<V>>[] results) {
+		Serializable[][] args = new Serializable[keys.length][1];
+		keys[0] = ID.getRandomID(keys.length);
+		for (int i = 0; i < keys.length; i++) {
+			args[i][0] = keys[i];
+		}
+
+		Serializable[][] callbackResultContainer = new Serializable[keys.length][1];
+
+		RoutingResult[] routingRes = this.routingSvc.invokeCallbacksOnRoute(
+				keys, config.getNumTimesGets() + config.getNumSpareResponsibleNodeCandidates(),
+				callbackResultContainer, -1, args);
+		this.preserveRoute(keys, routingRes);
+		for (int i = 0; i < keys.length; i++) {
+			if (routingRes[i] == null) continue;
+
+			if (callbackResultContainer[i] != null)
+				results[i] = (Set<ValueInfo<V>>)callbackResultContainer[i][0];
+
+			if (results[i] == null) results[i] = new HashSet<ValueInfo<V>>();
+			// routing succeeded and results[i] should not be null.
+		}
+
+		IDAddressPair idAddress = routingRes[0].getRoute()[routingRes[0].getRoute().length-1].getIDAddressPair();
+
+		int values = 100;
+
+		DHT.MLRequest<V>[] requests = new MLRequest[1];
+		requests[0] = new DHT.MLRequest<V>(idAddress.getID(), values);
+
+		Message request = null;
+		request = new MLMessage<V> (requests);
+		System.out.println("IDAddressPair: "+idAddress.toString());
+		System.out.println("request: "+requests[0].toString());
+
+		Message reply = null;
+		try {
+			reply = sender.sendAndReceive(idAddress.getAddress(), request);
+		} catch (IOException e) {
+			// TODO 自動生成された catch ブロック
+			e.printStackTrace();
+		}
+		System.out.println("reply: "+reply.toString());
+
+//		Message reply;
+//		try {
+//			reply = this.requestML(target, request);
+//		}
+//		catch (IOException e) {
+//
+//		}
+
+//		this.preserveRoute(keys, routingRes);
+//
+//		for (int i = 0; i < keys.length; i++) {
+//			if (routingRes[i] == null) continue;
+//
+//			if (callbackResultContainer[i] != null)
+//				results[i] = (Set<ValueInfo<V>>)callbackResultContainer[i][0];
+//
+//			if (results[i] == null) results[i] = new HashSet<ValueInfo<V>>();
+//			// routing succeeded and results[i] should not be null.
+//		}
+
+		return routingRes;
+	}
+	// ここまで追加
 
 	public Set<ValueInfo<V>> put(ID key, V value) throws IOException {
 		V[] values = (V[])new Serializable[1];
@@ -325,7 +405,7 @@ public class BasicDHTImpl<V extends Serializable> implements DHT<V> {
 		DHT.RemoveRequest<V>[] req = new DHT.RemoveRequest/*<V>*/[1];
 		if (values != null)
 			req[0] = new DHT.RemoveRequest<V>(key, values);
-		else 
+		else
 			req[0] = new DHT.RemoveRequest<V>(key, valueHash);
 
 		Set<ValueInfo<V>>[] ret = this.remove(req, hashedSecret);
@@ -517,6 +597,31 @@ public class BasicDHTImpl<V extends Serializable> implements DHT<V> {
 		return reply;
 	}
 
+	// ここから追加
+	private Message requestML(MessagingAddress target, Message request)
+			throws IOException {
+		Message reply = null;
+
+		try {
+			reply = sender.sendAndReceive(target, request);
+				// throws IOException
+
+			if (reply instanceof DHTReplyMessage) {
+				logger.log(Level.INFO, "ml succeeded on " + target);
+			}
+			else {
+				reply = null;
+			}
+		}
+		catch (IOException e) {
+			logger.log(Level.WARNING, "Failed to send a ml message to " + target, e);
+			throw e;
+		}
+
+		return reply;
+	}
+	// ここまで追加
+
 	/**
 	 * Saves the last keys and routes.
 	 */
@@ -639,6 +744,11 @@ public class BasicDHTImpl<V extends Serializable> implements DHT<V> {
 		handler = new PutMessageHandler();
 		routingSvc.addMessageHandler(PutMessage.class, handler);
 
+		// ここから追加
+		handler = new MLMessageHandler();
+		routingSvc.addMessageHandler(MLMessage.class, handler);
+		// ここまで追加
+
 		handler = new RemoveMessageHandler();
 		routingSvc.addMessageHandler(RemoveMessage.class, handler);
 	}
@@ -673,7 +783,7 @@ public class BasicDHTImpl<V extends Serializable> implements DHT<V> {
 					+ (requests[0] == null ? "(null)" : requests[0].getKey()));
 
 			if (ttl > config.getMaximumTTL())
-				ttl = config.getMaximumTTL(); 
+				ttl = config.getMaximumTTL();
 			else if (ttl <= 0L)
 				ttl = 0L;
 
@@ -712,6 +822,94 @@ public class BasicDHTImpl<V extends Serializable> implements DHT<V> {
 			return new DHTReplyMessage<V>(ret);
 		}
 	}
+
+	// ここから追加
+	protected class MLMessageHandler implements MessageHandler {
+		public Message process(Message msg) {
+			final DHT.MLRequest<V>[] requests = ((MLMessage<V>)msg).requests;
+//			long ttl = ((MLMessage<V>)msg).ttl;
+			long ttl = config.getDefaultTTL();
+			final ByteArray hashedSecret = ((MLMessage<V>)msg).hashedSecret;
+
+			logger.log(Level.INFO, "A ML message received"
+					+ (requests[0] == null ? "(null)" : requests[0].getKey()));
+
+//			if (ttl > config.getMaximumTTL())
+//				ttl = config.getMaximumTTL();
+//			else if (ttl <= 0L)
+//				ttl = 0L;
+
+			// put locally
+			Set<ValueInfo<V>>[] ret = new Set/*<ValueInfo<V>>*/[requests.length];
+
+			int values = requests[0].getValues() - 1;
+			if (values < 0) {
+				return new DHTReplyMessage<V>(ret);
+			}
+			try {
+				ValueInfo.Attributes attr = new ValueInfo.Attributes(ttl, hashedSecret);
+				// put locally
+//				if (values != null) {
+					ValueInfo<V> old = null;
+					Set<ValueInfo<V>> oldValue = null;
+					Set<ValueInfo<V>> newValue = null;
+					synchronized (globalDir) {
+						// setの要素を一つにする
+						oldValue = globalDir.remove(requests[0].getKey());
+						old = globalDir.put(requests[0].getKey(), new ValueInfo(values, attr), ttl);
+						newValue = globalDir.get(requests[0].getKey());
+						System.out.println("new: "+newValue.toString());
+//						System.out.println("new: "+newValue.toArray()[newValue.toArray().length-1]);
+					}
+//					System.out.println("old: "+old.toString());
+
+					if (old != null) {
+						ret[0].add(old);
+					}
+//				}
+			}
+			catch (Exception e) {
+				// NOTREACHED
+				System.out.println("ERROR");
+				logger.log(Level.WARNING, "An Exception thrown by Directory#put().", e);
+			}
+			ID[] keys = new ID[1];
+			keys[0] = ID.getRandomID(requests[0].getKey().getSize());
+			Serializable[][] args = new Serializable[keys.length][1];
+			for (int i = 0; i < keys.length; i++) {
+				args[i][0] = keys[i];
+			}
+			Serializable[][] callbackResultContainer = new Serializable[keys.length][1];
+			RoutingResult[] routingRes = routingSvc.invokeCallbacksOnRoute(
+					keys, config.getNumTimesGets() + config.getNumSpareResponsibleNodeCandidates(),
+					callbackResultContainer, -1, args);
+			preserveRoute(keys, routingRes);
+
+//			System.out.println("lenth: "+routingRes[0].getRoute().length);
+			IDAddressPair idAddress = routingRes[0].getRoute()[routingRes[0].getRoute().length-1].getIDAddressPair();
+			MessagingAddress target = idAddress.getMessagingAddress();
+			ID id = idAddress.getID();
+
+			DHT.MLRequest<V>[] requests2 = new MLRequest[1];
+			requests2[0] = new DHT.MLRequest(id, values);
+
+			Message request = null;
+			request = new MLMessage<V> (requests2);
+			System.out.println("IDAddressPair: "+idAddress.toString());
+			System.out.println("request: "+requests2[0].toString());
+
+			Message reply = null;
+			try {
+				reply = sender.sendAndReceive(target, request);
+			} catch (IOException e) {
+				// TODO 自動生成された catch ブロック
+				e.printStackTrace();
+			}
+
+			return new DHTReplyMessage<V>(ret);
+		}
+	}
+	// ここまで追加
 
 	protected class RemoveMessageHandler implements MessageHandler {
 		public Message process(Message msg) {

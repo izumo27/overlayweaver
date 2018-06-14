@@ -106,7 +106,7 @@ public final class IterativeRoutingDriver extends AbstractRoutingDriver {
 			throw new RoutingException();
 
 		algorithm.join(res[0].getResponsibleNodeCandidates());
-			// the algorithm instance performs the joining process 
+			// the algorithm instance performs the joining process
 
 		return res[0];
 	}
@@ -615,7 +615,7 @@ public final class IterativeRoutingDriver extends AbstractRoutingDriver {
 
 					// preserve last routing contexts
 					for (int i = 0; i < target.length; i++) {
-						if (this.routingContexts[i] != null) 
+						if (this.routingContexts[i] != null)
 							lastRoutingContexts[i] = this.routingContexts[i].clone();
 						else
 							lastRoutingContexts[i] = null;
@@ -772,7 +772,7 @@ public final class IterativeRoutingDriver extends AbstractRoutingDriver {
 				if (o == null || !(o instanceof RoutingResultTable<?>.Entry)) return false;
 				Entry ent = (Entry)o;
 				return this.target.equals(ent.target) && this.node.equals(ent.node);
-			} 
+			}
 		}
 
 		private Map<Entry,V> table = new HashMap<Entry,V>();
@@ -829,7 +829,7 @@ public final class IterativeRoutingDriver extends AbstractRoutingDriver {
 				}
 
 				for (int i = 0; i < targets.length; i++) {
-					if (routingContexts[i] == null) 
+					if (routingContexts[i] == null)
 						routingContexts[i] = algorithm.initialRoutingContext(targets[i]);
 						// In case of joining, routing contexts are initialized here.
 				}

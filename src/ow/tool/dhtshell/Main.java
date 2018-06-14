@@ -26,9 +26,9 @@ import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.cli.DefaultParser;
 
 import ow.dht.DHT;
 import ow.dht.DHTFactory;
@@ -41,6 +41,9 @@ import ow.tool.dhtshell.commands.HaltCommand;
 import ow.tool.dhtshell.commands.HelpCommand;
 import ow.tool.dhtshell.commands.InitCommand;
 import ow.tool.dhtshell.commands.LocaldataCommand;
+// ここから追加
+import ow.tool.dhtshell.commands.MLCommand;
+// ここまで追加
 import ow.tool.dhtshell.commands.PutCommand;
 import ow.tool.dhtshell.commands.QuitCommand;
 import ow.tool.dhtshell.commands.RemoveCommand;
@@ -73,6 +76,11 @@ public final class Main extends AbstractDHTBasedTool<String>
 		StatusCommand.class,
 		InitCommand.class,
 		GetCommand.class, PutCommand.class, RemoveCommand.class,
+
+		// ここから追加
+		MLCommand.class,
+		// ここまで追加
+
 		SetTTLCommand.class, SetSecretCommand.class,
 		LocaldataCommand.class,
 //		SourceCommand.class,
@@ -94,7 +102,7 @@ public final class Main extends AbstractDHTBasedTool<String>
 	private Shell<DHT<String>> stdioShell;
 
 	protected void usage(String command) {
-		super.usage(command, "[-p <shell port>] [--acl <ACL file>] [-n] [--web] [--showmap] [--oasis]"); 
+		super.usage(command, "[-p <shell port>] [--acl <ACL file>] [-n] [--web] [--showmap] [--oasis]");
 	}
 
 	public static void main(String[] args) {

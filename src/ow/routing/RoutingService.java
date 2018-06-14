@@ -74,7 +74,7 @@ public interface RoutingService {
 	/**
 	 * Invokes callback method on nodes on the route for the specified target.
 	 * On each node on the route callback are invoked with the specified arguments.
-	 * This method returns a result of a callback on the responsible node. 
+	 * This method returns a result of a callback on the responsible node.
 	 *
 	 * @param target target ID of routing
 	 * @param numResponsibleNodeCandidates number of candidates for the responsible node which this call request
